@@ -30,7 +30,7 @@ codex:
   thread_sandbox: workspace-write
   turn_sandbox_policy:
     type: workspaceWrite
-    network: allow
+    networkAccess: true
   read_timeout_ms: 60000
 ---
 
