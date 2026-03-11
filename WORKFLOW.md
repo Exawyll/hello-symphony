@@ -5,10 +5,10 @@ tracker:
   active_states:
     - Todo
     - In Progress
+    - In Review
     - Merging
     - Rework
   terminal_states:
-    - Closed
     - Cancelled
     - Canceled
     - Duplicate
@@ -105,7 +105,7 @@ The agent should be able to talk to Linear, either via a configured Linear MCP s
 - `Todo` -> queued; immediately transition to `In Progress` before active work.
   - Special case: if a PR is already attached, treat as feedback/rework loop (run full PR feedback sweep, address or explicitly push back, revalidate, return to `Human Review`).
 - `In Progress` -> implementation actively underway.
-- `Human Review` -> PR is attached and validated; waiting on human approval.
+- `In Review` -> PR is attached and validated; waiting on human approval.
 - `Merging` -> approved by human; execute the `land` skill flow (do not call `gh pr merge` directly).
 - `Rework` -> reviewer requested changes; planning + implementation required.
 - `Done` -> terminal state; no further action required.
@@ -119,7 +119,7 @@ The agent should be able to talk to Linear, either via a configured Linear MCP s
    - `Todo` -> immediately move to `In Progress`, then ensure bootstrap workpad comment exists (create if missing), then start execution flow.
      - If PR is already attached, start by reviewing all open PR comments and deciding required changes vs explicit pushback responses.
    - `In Progress` -> continue execution flow from current scratchpad comment.
-   - `Human Review` -> wait and poll for decision/review updates.
+   - `In Review` -> wait and poll for decision/review updates.
    - `Merging` -> on entry, open and follow `.codex/skills/land/SKILL.md`; do not call `gh pr merge` directly.
    - `Rework` -> run rework flow.
    - `Done` -> do nothing and shut down.
@@ -185,11 +185,11 @@ When a ticket has an attached PR, run this protocol before moving to `Human Revi
 7.  Merge latest `origin/main` into branch, resolve conflicts, and rerun checks.
 8.  Run the full PR feedback sweep protocol.
 9.  Confirm PR checks are passing after the latest changes.
-10. Only then move issue to `Human Review`.
+10. Only then move issue to `In Review`.
 
-## Step 3: Human Review and merge handling
+## Step 3: In Review and merge handling
 
-1. When the issue is in `Human Review`, do not code or change ticket content.
+1. When the issue is in `In Review`, do not code or change ticket content.
 2. Poll for updates; if review feedback requires changes, move to `Rework`.
 3. If approved, human moves the issue to `Merging`.
 4. When the issue is in `Merging`, open and follow `.codex/skills/land/SKILL.md`.
@@ -203,7 +203,7 @@ When a ticket has an attached PR, run this protocol before moving to `Human Revi
 4. Create a fresh branch from `origin/main`.
 5. Start over from the normal kickoff flow.
 
-## Completion bar before Human Review
+## Completion bar before In Review
 
 - Step 1/2 checklist is fully complete and accurately reflected in the workpad.
 - Acceptance criteria and required ticket-provided validation items are complete.
