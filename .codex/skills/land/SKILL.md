@@ -1,3 +1,8 @@
+---
+name: land
+description: Merge an approved PR, move the Linear ticket to Done, and clean up the branch. Use this skill when a ticket reaches the Merging state.
+---
+
 # Land Skill
 
 Merge an approved PR and close the associated Linear ticket.
