@@ -11,5 +11,8 @@ RUN npm install --only=production
 # Copy local code to the container image
 COPY . .
 
+# Cloud Run injects PORT at runtime; expose the default for local dev
+EXPOSE 8080
+
 # Start the service
 CMD [ "npm", "start" ]
