@@ -1,0 +1,36 @@
+# Intended for Cloud Build triggers on the main branch.
+steps:
+  # Step 1: Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+      - '.'
+
+  # Step 2: Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'hello-symphony'
+      - '--image'
+      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+substitutions:
+  _AR_REPO: 'repo-name'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
