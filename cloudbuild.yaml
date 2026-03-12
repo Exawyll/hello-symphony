@@ -30,7 +30,7 @@ steps:
       - '--allow-unauthenticated'
 
 substitutions:
-  _AR_REPO: 'repo-name'
+  _AR_REPO: 'hello-symphony'
 
 options:
   logging: CLOUD_LOGGING_ONLY
