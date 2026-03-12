@@ -1,37 +1,44 @@
 ---
 tracker:
   kind: linear
-  project_slug: "1d1e7ddc4b86"
-  active_states:
+  project_slug: "1d1e7ddc4b86"   # ← your Linear project (from the project URL)
+  active_states:                  # ← tickets in these states will be picked up
     - Todo
     - In Progress
     - Merging
     - Rework
-  terminal_states:
-    - Cancelled
-    - Canceled
-    - Duplicate
+  terminal_states:                # ← tickets in these states will stop the agent
     - Done
+    - Cancelled
+
 polling:
-  interval_ms: 30000
+  interval_ms: 30000              # ← checks Linear every 30 seconds
+
 workspace:
-  root: ~/symphony-workspaces/hello-symphony
+  root: ~/symphony-workspaces/hello-symphony  # ← where workspaces are created
+
 hooks:
   after_create: |
     git clone --depth 1 https://github.com/Exawyll/hello-symphony .
-  before_remove: |
-    echo "workspace cleanup"
+    # ↑ run once when a new workspace is created for an issue
+
 agent:
-  max_concurrent_agents: 2
-  max_turns: 20
+  max_concurrent_agents: 2       # ← max parallel issues being worked on
+  max_turns: 20                  # ← max Codex back-and-forth turns per issue
+
 codex:
-  command: codex app-server
-  approval_policy: never
-  thread_sandbox: workspace-write
-  turn_sandbox_policy:
+  command: codex --config shell_environment_policy.inherit=all --config model="gpt-5.2-codex" app-server      # ← how Symphony launches Codex
+  approval_policy: never         # ← never pause to ask for approval (fully autonomous)
+  thread_sandbox: workspace-write # ← Codex can only write inside the workspace
+  turn_sandbox_policy:           # ← explicit policy to allow network (needed for git push/pull)
     type: workspaceWrite
+    writableRoots:
+      - /Users/w.delaunay/symphony-workspaces/hello-symphony
+    readOnlyAccess:
+      type: fullAccess
     networkAccess: true
-  read_timeout_ms: 60000
+    excludeTmpdirEnvVar: false
+    excludeSlashTmp: false
 ---
 
 You are working on a Linear ticket `{{ issue.identifier }}`
@@ -64,6 +71,7 @@ Instructions:
 1. This is an unattended orchestration session. Never ask a human to perform follow-up actions.
 2. Only stop early for a true blocker (missing required auth/permissions/secrets). If blocked, record it in the workpad and move the issue according to workflow.
 3. Final message must report completed actions and blockers only. Do not include "next steps for user".
+4. Do not use `test -w .git` or `access()`-based write checks on the `.git` directory as a gate. The workspace git repo is writable — proceed with git operations directly and treat any failure as a real error.
 
 Work only in the provided repository copy. Do not touch any other path.
 
