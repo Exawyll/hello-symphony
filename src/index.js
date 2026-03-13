@@ -272,30 +272,46 @@ const html = `<!doctype html>
 
       metricsRoot.innerHTML = metrics
         .map(
-          (metric) => `
-            <article class="card">
-              <div class="metric-value">${metric.value}</div>
-              <div class="metric-label">${metric.label}</div>
-              <div class="trend ${metric.trend}">
-                <span>${metric.trend === "up" ? "▲" : metric.trend === "down" ? "▼" : "●"}</span>
-                <span>${metric.delta}</span>
-              </div>
-            </article>
-          `
+          (metric) =>
+            '<article class="card">' +
+            '<div class="metric-value">' +
+            metric.value +
+            '</div>' +
+            '<div class="metric-label">' +
+            metric.label +
+            '</div>' +
+            '<div class="trend ' +
+            metric.trend +
+            '">' +
+            '<span>' +
+            (metric.trend === "up" ? "▲" : metric.trend === "down" ? "▼" : "●") +
+            '</span>' +
+            '<span>' +
+            metric.delta +
+            '</span>' +
+            '</div>' +
+            '</article>'
         )
         .join("");
 
       tasksRoot.innerHTML = tasks
         .map(
-          (task) => `
-            <div class="task">
-              <div>
-                <div class="task-title">${task.title}</div>
-                <div class="task-meta">${task.meta}</div>
-              </div>
-              <div class="status ${task.status}">${task.label}</div>
-            </div>
-          `
+          (task) =>
+            '<div class="task">' +
+            '<div>' +
+            '<div class="task-title">' +
+            task.title +
+            '</div>' +
+            '<div class="task-meta">' +
+            task.meta +
+            '</div>' +
+            '</div>' +
+            '<div class="status ' +
+            task.status +
+            '">' +
+            task.label +
+            '</div>' +
+            '</div>'
         )
         .join("");
     </script>
@@ -303,7 +319,8 @@ const html = `<!doctype html>
 </html>
 `;
 
-const server = http.createServer((req, res) => {
+const createServer = () =>
+  http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
@@ -315,8 +332,15 @@ const server = http.createServer((req, res) => {
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not Found' }));
-});
+  });
 
-server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+const renderHtml = () => html;
+
+if (require.main === module) {
+  const server = createServer();
+  server.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { createServer, renderHtml };
