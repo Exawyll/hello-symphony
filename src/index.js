@@ -96,6 +96,21 @@ const html = `<!doctype html>
         margin-bottom: 28px;
       }
 
+      .tasks-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 28px;
+      }
+
+      body.backlog-view .tasks-grid {
+        grid-template-columns: 1fr;
+      }
+
+      body.backlog-view .tasks[data-section="recent"] {
+        display: none;
+      }
+
       .card {
         background: var(--surface);
         border-radius: var(--radius);
@@ -159,9 +174,17 @@ const html = `<!doctype html>
         box-shadow: var(--shadow);
       }
 
+      .tasks-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
       .tasks h2 {
         font-family: "Iowan Old Style", "Palatino", "Book Antiqua", serif;
-        margin: 0 0 16px;
+        margin: 0;
         font-size: 22px;
       }
 
@@ -217,6 +240,27 @@ const html = `<!doctype html>
         color: #1a6a47;
       }
 
+      .status.backlog {
+        background: rgba(90, 95, 115, 0.12);
+        color: #5a5f73;
+        border: 1px solid rgba(90, 95, 115, 0.35);
+      }
+
+      .tasks-link {
+        color: var(--accent-2);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .tasks-link:hover {
+        text-decoration: underline;
+      }
+
+      .tasks-footer {
+        margin-top: 16px;
+      }
+
       .mock {
         margin-top: 18px;
         color: var(--muted);
@@ -225,6 +269,10 @@ const html = `<!doctype html>
 
       @media (max-width: 900px) {
         .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .tasks-grid {
           grid-template-columns: 1fr;
         }
 
@@ -246,10 +294,23 @@ const html = `<!doctype html>
 
       <section id="metrics" class="grid" aria-label="Métriques clés"></section>
 
-      <section class="tasks" aria-label="Tâches récentes">
-        <h2>Vos tâches récentes</h2>
-        <div id="tasks"></div>
-        <div class="mock">Données mockées en JavaScript — aucune API externe.</div>
+      <section class="tasks-grid" aria-label="Vue des tâches">
+        <div class="tasks" data-section="recent" aria-label="Tâches récentes">
+          <div class="tasks-header">
+            <h2>Vos tâches récentes</h2>
+          </div>
+          <div id="tasks"></div>
+          <div class="mock">Données mockées en JavaScript — aucune API externe.</div>
+        </div>
+        <div class="tasks" data-section="backlog" aria-label="Backlog">
+          <div class="tasks-header">
+            <h2>Backlog</h2>
+          </div>
+          <div id="backlog"></div>
+          <div class="tasks-footer">
+            <a class="tasks-link" href="/backlog">Voir tout le backlog</a>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -261,14 +322,129 @@ const html = `<!doctype html>
       ];
 
       const tasks = [
-        { title: "Préparer la démo client", meta: "Échéance: aujourd'hui 16h", status: "progress", label: "En cours" },
-        { title: "Mettre à jour le backlog", meta: "Échéance: demain", status: "todo", label: "À faire" },
-        { title: "Corriger la pagination", meta: "Bloqué par QA", status: "blocked", label: "Bloquée" },
-        { title: "Envoyer le compte-rendu", meta: "Terminé ce matin", status: "done", label: "Terminé" }
+        {
+          title: "Préparer la démo client",
+          meta: "Échéance: aujourd'hui 16h",
+          status: "progress",
+          label: "En cours",
+          dueBucket: "today",
+          planned: true,
+          addedAt: "2026-03-12T08:10:00Z"
+        },
+        {
+          title: "Mettre à jour le backlog",
+          meta: "Échéance: demain",
+          status: "todo",
+          label: "À faire",
+          dueBucket: "tomorrow",
+          planned: true,
+          addedAt: "2026-03-11T14:00:00Z"
+        },
+        {
+          title: "Corriger la pagination",
+          meta: "Bloqué par QA",
+          status: "blocked",
+          label: "Bloquée",
+          planned: true,
+          addedAt: "2026-03-09T09:30:00Z"
+        },
+        {
+          title: "Envoyer le compte-rendu",
+          meta: "Terminé ce matin",
+          status: "done",
+          label: "Terminé",
+          planned: true,
+          addedAt: "2026-03-10T07:45:00Z"
+        },
+        {
+          title: "Documenter la charte UX",
+          meta: "Ajoutée le 12 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-12T17:05:00Z"
+        },
+        {
+          title: "Refactorer la gestion des rôles",
+          meta: "Ajoutée le 11 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-11T18:20:00Z"
+        },
+        {
+          title: "Mettre en place les tests E2E",
+          meta: "Ajoutée le 10 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-10T16:40:00Z"
+        },
+        {
+          title: "Rafraîchir les templates d'email",
+          meta: "Ajoutée le 9 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-09T12:55:00Z"
+        },
+        {
+          title: "Préparer la roadmap Q2",
+          meta: "Ajoutée le 8 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-08T10:25:00Z"
+        },
+        {
+          title: "Cartographier les dépendances API",
+          meta: "Ajoutée le 7 mars",
+          status: "backlog",
+          label: "À planifier",
+          isBacklog: true,
+          planned: false,
+          addedAt: "2026-03-07T09:05:00Z"
+        }
       ];
 
       const metricsRoot = document.getElementById("metrics");
       const tasksRoot = document.getElementById("tasks");
+      const backlogRoot = document.getElementById("backlog");
+      const backlogLink = document.querySelector(".tasks-link");
+
+      const isBacklogView = window.location.pathname === "/backlog";
+
+      if (isBacklogView) {
+        document.body.classList.add("backlog-view");
+        if (backlogLink) {
+          backlogLink.textContent = "Retour au dashboard";
+          backlogLink.setAttribute("href", "/");
+        }
+      }
+
+      const isBacklogTask = (task) => task.isBacklog || task.planned === false;
+
+      const recentTasks = tasks.filter((task) => {
+        if (isBacklogTask(task)) {
+          return false;
+        }
+
+        const statusMatches = task.status === "progress" || task.status === "done";
+        const dueMatches = task.dueBucket === "today" || task.dueBucket === "tomorrow";
+
+        return statusMatches || dueMatches;
+      });
+
+      const backlogTasks = tasks
+        .filter(isBacklogTask)
+        .sort((first, second) => new Date(second.addedAt) - new Date(first.addedAt));
+
+      const backlogDisplayTasks = isBacklogView ? backlogTasks : backlogTasks.slice(0, 5);
 
       metricsRoot.innerHTML = metrics
         .map(
@@ -294,7 +470,28 @@ const html = `<!doctype html>
         )
         .join("");
 
-      tasksRoot.innerHTML = tasks
+      tasksRoot.innerHTML = recentTasks
+        .map(
+          (task) =>
+            '<div class="task">' +
+            '<div>' +
+            '<div class="task-title">' +
+            task.title +
+            '</div>' +
+            '<div class="task-meta">' +
+            task.meta +
+            '</div>' +
+            '</div>' +
+            '<div class="status ' +
+            task.status +
+            '">' +
+            task.label +
+            '</div>' +
+            '</div>'
+        )
+        .join("");
+
+      backlogRoot.innerHTML = backlogDisplayTasks
         .map(
           (task) =>
             '<div class="task">' +
@@ -321,7 +518,9 @@ const html = `<!doctype html>
 
 const createServer = () =>
   http.createServer((req, res) => {
-  if (req.method === 'GET' && req.url === '/') {
+  const isDashboardRoute = req.url === '/' || req.url === '/backlog';
+
+  if (req.method === 'GET' && isDashboardRoute) {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': Buffer.byteLength(html),
