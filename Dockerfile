@@ -1,14 +1,14 @@
-FROM node:18-slim
+FROM python:3.12-slim
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=node:node . .
+COPY --chown=nobody:nogroup src/ ./src/
 
-USER node
+USER nobody
 
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]

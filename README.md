@@ -1,10 +1,10 @@
 # hello-symphony
 
-Backend service skeleton for Cloud Run.
+Backend service for Cloud Run that searches Kinexo clients and returns their active tasks.
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) v18 or later
+- Python 3.12+
 - Docker (for container builds)
 - `gcloud` CLI (optional, for triggering Cloud Build)
 
@@ -18,47 +18,46 @@ cp .env.example .env
 
 Required variables:
 
-- `KEYCLOAK_URL`
-- `REALM`
-- `CLIENT_ID`
-- `CLIENT_SECRET`
-- `API_BASE_URL`
+| Variable | Description |
+|---|---|
+| `KEYCLOAK_URL` | Keycloak base URL (e.g. `https://auth.example.com/auth`) |
+| `REALM` | Keycloak realm |
+| `CLIENT_ID` | OAuth client ID |
+| `CLIENT_SECRET` | OAuth client secret |
+| `API_BASE_URL` | Kinexo API base URL |
 
-The service reads environment variables at startup and exits if any are missing.
+Optional:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `8080` | Server port |
+| `ENV` | — | Set to `production` to disable Swagger UI |
+| `SWAGGER_ENABLED` | — | Explicit override (`true`/`false`) for Swagger UI |
 
 ## Run Locally
 
-### Node.js
-
 ```bash
-set -a
-source .env
-set +a
-npm start
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+set -a && source .env && set +a
+uvicorn src.main:app --host 0.0.0.0 --port 8080
 ```
 
-The server listens on `PORT` (defaults to `8080`).
+### Endpoints
 
-Test the health endpoint:
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `GET` | `/tasks?q=<term>` | Active tasks for clients matching `term` |
+| `GET` | `/docs` | Swagger UI (non-production only) |
+| `GET` | `/openapi.json` | OpenAPI spec (non-production only) |
 
 ```bash
 curl http://localhost:8080/health
+curl "http://localhost:8080/tasks?q=CERFRANCE"
 ```
-
-Expected response:
-
-```json
-{"status":"ok"}
-```
-
-Swagger UI (enabled by default when `ENV` is not `production`) is available at:
-
-```bash
-open http://localhost:8080/docs
-curl http://localhost:8080/openapi.json
-```
-
-Disable Swagger explicitly by setting `SWAGGER_ENABLED=false`.
 
 ### Docker
 
@@ -68,6 +67,8 @@ docker run --rm --env-file .env -p 8080:8080 hello-symphony
 ```
 
 ## Cloud Build (manual trigger)
+
+All secrets are read from GCP Secret Manager at deploy time.
 
 ```bash
 gcloud builds submit \
@@ -79,12 +80,15 @@ gcloud builds submit \
 ## Project Structure
 
 ```
-.
-├── src/
-│   └── index.js   # HTTP server entry point
-├── Dockerfile
-├── cloudbuild.yaml
-├── .env.example
-├── package.json
-└── README.md
+src/
+├── config.py          # Environment variable loading
+├── auth.py            # Keycloak token manager (async, cached)
+├── kinexo/
+│   ├── client.py      # Authenticated HTTP client (auto-retry on 401)
+│   ├── search.py      # Search clients by raison sociale (paginated)
+│   └── tasks.py       # Fan-out: projects → active tasks
+├── api/
+│   ├── health.py      # GET /health
+│   └── tasks.py       # GET /tasks
+└── main.py            # FastAPI app entry point
 ```
