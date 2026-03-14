@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello Symphony</title>
+  <title>Rapport Mensuel Clients</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -19,50 +19,403 @@
     header {
       background: #0052cc;
       color: #fff;
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
+      flex-wrap: wrap;
     }
-    header h1 { font-size: 1.2rem; font-weight: 600; }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    #periode-label {
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+
+    #month-select {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    #month-select option { color: #172b4d; background: #fff; }
+
+    .freshness {
+      font-size: 0.78rem;
+      opacity: 0.75;
+      white-space: nowrap;
+    }
 
     main {
       flex: 1;
+      padding: 20px 16px;
+      overflow: hidden;
+    }
+
+    #status {
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-
-    .home-content {
-      text-align: center;
+      padding: 40px;
       color: #6b778c;
-    }
-
-    .home-content h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #172b4d;
-      margin-bottom: 8px;
-    }
-
-    .home-content p {
       font-size: 0.95rem;
+      gap: 10px;
     }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #dfe1e6;
+      border-top-color: #0052cc;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error {
+      color: #de350b;
+      background: #ffebe6;
+      border: 1px solid #ff8f73;
+      border-radius: 6px;
+      padding: 12px 16px;
+      max-width: 500px;
+      margin: 40px auto;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      background: #fff;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: max-content;
+      min-width: 100%;
+      font-size: 0.83rem;
+    }
+
+    thead tr:first-child th {
+      background: #0052cc;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 12px;
+      text-align: center;
+      border-right: 2px solid rgba(255,255,255,0.25);
+    }
+
+    thead tr:first-child th:first-child { text-align: left; border-right: none; }
+
+    thead tr:nth-child(2) th {
+      background: #e6f0ff;
+      color: #0052cc;
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 7px 12px;
+      text-align: center;
+      white-space: nowrap;
+      border-bottom: 2px solid #b3d0ff;
+      border-right: 1px solid #c8dcff;
+    }
+
+    thead tr:nth-child(2) th:first-child {
+      text-align: left;
+      background: #f4f5f7;
+      border-right: 2px solid #dfe1e6;
+    }
+
+    tbody tr { border-bottom: 1px solid #f0f1f3; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover td { background: #f8f9fc; }
+
+    td {
+      padding: 9px 12px;
+      text-align: right;
+      white-space: nowrap;
+      color: #172b4d;
+    }
+
+    td:first-child {
+      text-align: left;
+      font-weight: 500;
+      background: #fafbfc;
+      border-right: 2px solid #dfe1e6;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+
+    tbody tr:hover td:first-child { background: #f4f5f7; }
+
+    .cell-zero { color: #c1c7d0; }
+
+    tr.totaux td {
+      background: #172b4d !important;
+      color: #fff !important;
+      font-weight: 700;
+      border-top: 2px solid #0052cc;
+      position: sticky;
+      bottom: 0;
+    }
+
+    tr.totaux td:first-child {
+      background: #0a1929 !important;
+      border-right-color: #3a5273;
+    }
+
+    /* group separators */
+    .sep-right { border-right: 2px solid #c8dcff !important; }
+    thead tr:first-child .sep-right { border-right-color: rgba(255,255,255,0.4) !important; }
+    tr.totaux .sep-right { border-right-color: rgba(255,255,255,0.2) !important; }
   </style>
 </head>
 <body>
 
 <header>
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-  <h1>Hello Symphony</h1>
+  <h1>Rapport Mensuel Clients</h1>
+  <span id="periode-label"></span>
+  <select id="month-select" style="display:none"></select>
+  <span class="freshness" id="freshness"></span>
 </header>
 
 <main>
-  <div class="home-content">
-    <h2>Accueil</h2>
-    <p>Bienvenue sur Hello Symphony.</p>
-  </div>
+  <div id="status"><div class="spinner"></div> Chargement…</div>
+  <div id="error" class="error" style="display:none"></div>
+  <div id="table-container" style="display:none" class="table-wrap"></div>
 </main>
 
+<script>
+const COLUMNS = [
+  // [field, label, group]
+  ['coffre_actif',                 'Coffres actifs',       'coffres'],
+  ['coffre_ouvert_inactif',        'Ouverts inactifs',     'coffres'],
+  ['coffre_actif_ba_bic_hors_sci', 'BA/BIC hors SCI',      'coffres'],
+  ['coffre_actif_ba_bic_sci',      'BA/BIC SCI',           'coffres'],
+  ['coffre_actif_bnc',             'BNC',                  'coffres'],
+  ['coffre_paiement_actif',        'Paiement',             'coffres'],
+  ['coffre_agregation_actif',      'Agrégation',           'coffres'],
+  ['coffre_base_article_actif',    'Base article',         'coffres'],
+  ['coffre_facturier_actif',       'Facturier',            'coffres'],
+  ['nb_dossiers_actifs',           'Dossiers actifs',      'facturation'],
+  ['nb_sms',                       'SMS',                  'facturation'],
+  ['nb_echeances_a_venir',         'Échéances à venir',    'facturation'],
+  ['nb_missions_actives',          'Missions actives',     'facturation'],
+  ['nb_imputations',               'Imputations',          'facturation'],
+  ['nb_propositions_validees',     'Propositions validées','facturation'],
+  ['nb_adhesions_actives',         'Adhésions actives',    'facturation'],
+  ['nb_dossiers_ediflux',          'Dossiers Ediflux',     'ediflux'],
+];
+
+const GROUPS = [
+  { key: 'coffres',     label: 'Coffres MyKinexo' },
+  { key: 'facturation', label: 'Facturation' },
+  { key: 'ediflux',     label: 'Ediflux' },
+];
+
+function groupSpans() {
+  return GROUPS.map(g => ({
+    ...g,
+    count: COLUMNS.filter(c => c[2] === g.key).length,
+    lastIndex: COLUMNS.map(c => c[2]).lastIndexOf(g.key),
+  }));
+}
+
+function fmtDate(val) {
+  if (!val) return '—';
+  // Firestore Timestamp has .toDate(), or it may be a string/number
+  let d;
+  if (val && typeof val === 'object' && typeof val.toDate === 'function') {
+    d = val.toDate();
+  } else if (typeof val === 'string' || typeof val === 'number') {
+    d = new Date(val);
+  } else {
+    return String(val);
+  }
+  return d.toLocaleString('fr-FR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function fmtFreshness(val) {
+  if (!val) return '';
+  let d;
+  if (val && typeof val === 'object' && typeof val.toDate === 'function') {
+    d = val.toDate();
+  } else {
+    d = new Date(val);
+  }
+  if (isNaN(d)) return '';
+  const diff = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diff < 1) return 'mis à jour à l\'instant';
+  if (diff < 60) return `mis à jour il y a ${diff} min`;
+  const h = Math.floor(diff / 60);
+  if (h < 24) return `mis à jour il y a ${h}h`;
+  const days = Math.floor(h / 24);
+  return `mis à jour il y a ${days}j`;
+}
+
+function buildTable(data) {
+  const clients = data.clients || [];
+  const totaux = data.totaux || {};
+  const groups = groupSpans();
+
+  const table = document.createElement('table');
+
+  // Header row 1: Client + group spans
+  const hr1 = table.createTHead().insertRow();
+  const thClient = document.createElement('th');
+  thClient.textContent = 'Client';
+  thClient.rowSpan = 2;
+  hr1.appendChild(thClient);
+
+  groups.forEach((g, gi) => {
+    const th = document.createElement('th');
+    th.textContent = g.label;
+    th.colSpan = g.count;
+    if (gi < groups.length - 1) th.classList.add('sep-right');
+    hr1.appendChild(th);
+  });
+
+  // Header row 2: individual column labels
+  const hr2 = table.tHead.insertRow();
+  const thClientPlaceholder = document.createElement('th');
+  hr2.appendChild(thClientPlaceholder);
+
+  COLUMNS.forEach(([field, label, group], idx) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    // Add separator after last column of each group (except last group)
+    const g = groups.find(g => g.key === group);
+    if (g && idx === g.lastIndex) {
+      const gi = groups.indexOf(g);
+      if (gi < groups.length - 1) th.classList.add('sep-right');
+    }
+    hr2.appendChild(th);
+  });
+
+  // Body rows
+  const tbody = table.createTBody();
+  clients.forEach(client => {
+    const tr = tbody.insertRow();
+    const tdName = tr.insertCell();
+    tdName.textContent = client.raison_sociale || '—';
+
+    COLUMNS.forEach(([field, , group], idx) => {
+      const td = tr.insertCell();
+      const val = client[field];
+      if (val == null || val === 0) {
+        td.textContent = val === 0 ? '0' : '—';
+        td.classList.add('cell-zero');
+      } else {
+        td.textContent = val.toLocaleString('fr-FR');
+      }
+      const g = groups.find(g => g.key === group);
+      if (g && idx === g.lastIndex) {
+        const gi = groups.indexOf(g);
+        if (gi < groups.length - 1) td.classList.add('sep-right');
+      }
+    });
+  });
+
+  // Totaux row
+  const trTotaux = tbody.insertRow();
+  trTotaux.classList.add('totaux');
+  const tdTotauxName = trTotaux.insertCell();
+  tdTotauxName.textContent = 'TOTAUX';
+
+  COLUMNS.forEach(([field, , group], idx) => {
+    const td = trTotaux.insertCell();
+    const val = totaux[field];
+    if (val == null || val === 0) {
+      td.textContent = val === 0 ? '0' : '—';
+    } else {
+      td.textContent = val.toLocaleString('fr-FR');
+    }
+    const g = groups.find(g => g.key === group);
+    if (g && idx === g.lastIndex) {
+      const gi = groups.indexOf(g);
+      if (gi < groups.length - 1) td.classList.add('sep-right');
+    }
+  });
+
+  return table;
+}
+
+function showError(msg) {
+  document.getElementById('status').style.display = 'none';
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function renderRapport(data) {
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  document.getElementById('periode-label').textContent = data.periode || '';
+  document.getElementById('freshness').textContent = fmtFreshness(data.last_updated);
+
+  const container = document.getElementById('table-container');
+  container.innerHTML = '';
+  container.appendChild(buildTable(data));
+  container.style.display = 'block';
+}
+
+async function loadRapport(mois) {
+  document.getElementById('table-container').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('status').style.display = 'flex';
+
+  const url = mois ? `/api/rapport/${mois}` : '/api/rapport/latest';
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+    renderRapport(await res.json());
+  } catch (e) {
+    showError(`Erreur : ${e.message}`);
+  }
+}
+
+async function loadMonths() {
+  try {
+    const res = await fetch('/api/rapport');
+    if (!res.ok) return;
+    const data = await res.json();
+    const mois = data.mois || [];
+    const sel = document.getElementById('month-select');
+    mois.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      sel.appendChild(opt);
+    });
+    if (mois.length > 1) sel.style.display = 'inline-block';
+    sel.addEventListener('change', () => loadRapport(sel.value));
+  } catch (e) {
+    // non-critical
+  }
+}
+
+loadMonths();
+loadRapport(null);
+</script>
 </body>
 </html>

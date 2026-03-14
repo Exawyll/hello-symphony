@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,12 +8,14 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from google.cloud import firestore
 
 from src.auth import KeycloakTokenManager
 from src.config import load_config
 from src.kinexo.client import KinexoClient
 from src.api.clients import router as clients_router
 from src.api.health import router as health_router
+from src.api.rapport import router as rapport_router
 from src.api.tasks import router as tasks_router
 
 STATIC_DIR = Path(__file__).parent.parent / 'static'
@@ -27,6 +30,9 @@ config = load_config()
 async def lifespan(app: FastAPI):
     token_manager = KeycloakTokenManager(config)
     app.state.kinexo_client = KinexoClient(config.api_base_url, token_manager)
+    app.state.firestore_client = firestore.Client(
+        project=os.environ.get('GCP_PROJECT_ID')
+    )
     try:
         await token_manager.get_access_token()
         logger.info('Startup Keycloak token acquisition succeeded')
@@ -46,6 +52,7 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(clients_router)
 app.include_router(tasks_router)
+app.include_router(rapport_router)
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
