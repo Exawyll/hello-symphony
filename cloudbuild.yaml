@@ -26,6 +26,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--vpc-connector=hello-connector'
+      - '--vpc-egress=all-traffic'
       - '--update-secrets=KEYCLOAK_URL=KEYCLOAK_URL:latest,REALM=REALM:latest,CLIENT_ID=CLIENT_ID:latest,CLIENT_SECRET=CLIENT_SECRET:latest,API_BASE_URL=API_BASE_URL:latest'
 
 substitutions:
