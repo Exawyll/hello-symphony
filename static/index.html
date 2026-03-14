@@ -270,7 +270,8 @@ function fmtFreshness(val) {
 }
 
 function buildTable(data) {
-  const clients = data.clients || [];
+  const raw = data.clients || {};
+  const clients = Array.isArray(raw) ? raw : Object.values(raw);
   const totaux = data.totaux || {};
   const groups = groupSpans();
 
