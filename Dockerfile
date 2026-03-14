@@ -1,18 +1,14 @@
-# Use the official Node.js 18 image
 FROM node:18-slim
 
-# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install --only=production
+RUN npm install --omit=dev && npm cache clean --force
 
-# Copy local code to the container image
-COPY . .
+COPY --chown=node:node . .
 
-# Cloud Run injects PORT at runtime; expose the default for local dev
+USER node
+
 EXPOSE 8080
 
-# Start the service
-CMD [ "npm", "start" ]
+CMD ["npm", "start"]

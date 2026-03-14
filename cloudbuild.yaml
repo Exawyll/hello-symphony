@@ -1,36 +1,37 @@
-# Intended for Cloud Build triggers on the main branch.
 steps:
-  # Step 1: Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE_NAME}:$SHORT_SHA'
       - '.'
 
-  # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE_NAME}:$SHORT_SHA'
 
-  # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - 'run'
       - 'deploy'
-      - 'hello-symphony'
+      - '${_SERVICE_NAME}'
       - '--image'
-      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/hello-symphony:$COMMIT_SHA'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE_NAME}:$SHORT_SHA'
       - '--region'
-      - 'europe-west1'
+      - '${_REGION}'
+      - '--project'
+      - '${_PROJECT_ID}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
 
 substitutions:
-  _AR_REPO: 'hello-symphony'
+  _REGION: 'europe-west1'
+  _PROJECT_ID: 'your-gcp-project-id'
+  _SERVICE_NAME: 'hello-symphony'
+  _REPO: 'hello-symphony'
 
 options:
   logging: CLOUD_LOGGING_ONLY
