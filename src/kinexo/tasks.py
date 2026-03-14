@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date, datetime, timezone
 
 from src.kinexo.client import KinexoClient
@@ -16,10 +17,18 @@ def _today_utc() -> date:
     return datetime.now(timezone.utc).date()
 
 
-async def retrieve_active_tasks(
+def _current_month_range() -> tuple[date, date]:
+    today = _today_utc()
+    last_day = monthrange(today.year, today.month)[1]
+    return date(today.year, today.month, 1), date(today.year, today.month, last_day)
+
+
+async def _fetch_tasks_for_dossier(
     client: KinexoClient,
     dossier_id: object,
     client_name: str,
+    period_start: date,
+    period_end: date,
 ) -> list[dict]:
     if not dossier_id:
         return []
@@ -33,8 +42,7 @@ async def retrieve_active_tasks(
         )
 
     projects = resp.json().get('content', [])
-    today = _today_utc()
-    active_tasks = []
+    tasks = []
 
     for project in projects:
         project_id = project.get('id')
@@ -57,8 +65,8 @@ async def retrieve_active_tasks(
             if not start or not end:
                 continue
 
-            if start <= today <= end:
-                active_tasks.append({
+            if start <= period_end and end >= period_start:
+                tasks.append({
                     'clientName': client_name,
                     'projectLabel': project_label,
                     'taskLabel': task.get('libelle') or f"#{task.get('id', 'unknown')}",
@@ -68,4 +76,22 @@ async def retrieve_active_tasks(
                     'agents': task.get('matriculesAgents') or [],
                 })
 
-    return active_tasks
+    return tasks
+
+
+async def retrieve_active_tasks(
+    client: KinexoClient,
+    dossier_id: object,
+    client_name: str,
+) -> list[dict]:
+    today = _today_utc()
+    return await _fetch_tasks_for_dossier(client, dossier_id, client_name, today, today)
+
+
+async def retrieve_monthly_tasks(
+    client: KinexoClient,
+    dossier_id: object,
+    client_name: str,
+) -> list[dict]:
+    month_start, month_end = _current_month_range()
+    return await _fetch_tasks_for_dossier(client, dossier_id, client_name, month_start, month_end)
