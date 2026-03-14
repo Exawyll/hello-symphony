@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from google.cloud import firestore
 
 from src.auth import KeycloakTokenManager
+from src.basic_auth import BasicAuthMiddleware
 from src.config import load_config
 from src.kinexo.client import KinexoClient
 from src.api.clients import router as clients_router
@@ -48,6 +49,11 @@ app = FastAPI(
     openapi_url='/openapi.json' if config.swagger_enabled else None,
     lifespan=lifespan,
 )
+
+if config.basic_auth_user and config.basic_auth_password:
+    app.add_middleware(BasicAuthMiddleware,
+                       username=config.basic_auth_user,
+                       password=config.basic_auth_password)
 
 app.include_router(health_router)
 app.include_router(clients_router)

@@ -14,6 +14,8 @@ class Config:
     api_base_url: str
     port: int
     swagger_enabled: bool
+    basic_auth_user: str | None
+    basic_auth_password: str | None
 
 
 def load_config() -> Config:
@@ -35,4 +37,6 @@ def load_config() -> Config:
         api_base_url=os.environ['API_BASE_URL'].rstrip('/'),
         port=int(os.environ.get('PORT', 8080)),
         swagger_enabled=swagger_enabled,
+        basic_auth_user=os.environ.get('BASIC_AUTH_USER'),
+        basic_auth_password=os.environ.get('BASIC_AUTH_PASSWORD'),
     )

@@ -28,7 +28,7 @@ steps:
       - '--allow-unauthenticated'
       - '--vpc-connector=hello-connector'
       - '--vpc-egress=all-traffic'
-      - '--update-secrets=KEYCLOAK_URL=KEYCLOAK_URL:latest,REALM=REALM:latest,CLIENT_ID=CLIENT_ID:latest,CLIENT_SECRET=CLIENT_SECRET:latest,API_BASE_URL=API_BASE_URL:latest'
+      - '--update-secrets=KEYCLOAK_URL=KEYCLOAK_URL:latest,REALM=REALM:latest,CLIENT_ID=CLIENT_ID:latest,CLIENT_SECRET=CLIENT_SECRET:latest,API_BASE_URL=API_BASE_URL:latest,BASIC_AUTH_USER=BASIC_AUTH_USER:latest,BASIC_AUTH_PASSWORD=BASIC_AUTH_PASSWORD:latest'
 
 substitutions:
   _REGION: 'europe-west1'

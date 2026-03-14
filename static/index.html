@@ -124,18 +124,16 @@
       background: #e6f0ff;
       color: #0052cc;
       font-weight: 600;
-      font-size: 0.75rem;
-      padding: 7px 12px;
+      font-size: 0.72rem;
+      padding: 8px 4px 4px;
       text-align: center;
       white-space: nowrap;
       border-bottom: 2px solid #b3d0ff;
       border-right: 1px solid #c8dcff;
-    }
-
-    thead tr:nth-child(2) th:first-child {
-      text-align: left;
-      background: #f4f5f7;
-      border-right: 2px solid #dfe1e6;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      height: 110px;
+      vertical-align: bottom;
     }
 
     tbody tr { border-bottom: 1px solid #f0f1f3; }
@@ -292,10 +290,8 @@ function buildTable(data) {
     hr1.appendChild(th);
   });
 
-  // Header row 2: individual column labels
+  // Header row 2: individual column labels (no placeholder — Client th has rowSpan=2)
   const hr2 = table.tHead.insertRow();
-  const thClientPlaceholder = document.createElement('th');
-  hr2.appendChild(thClientPlaceholder);
 
   COLUMNS.forEach(([field, label, group], idx) => {
     const th = document.createElement('th');
