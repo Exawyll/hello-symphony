@@ -272,20 +272,13 @@ if (require.main === module) {
   const server = createServer();
   const tokenManager = createKeycloakTokenManager(config);
 
-  (async () => {
-    try {
-      await tokenManager.getAccessToken();
-    } catch (error) {
-      console.error(
-        `Startup Keycloak token acquisition failed: ${error.message}`
-      );
-      process.exit(1);
-    }
+  server.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
+  });
 
-    server.listen(port, () => {
-      console.log(`Server listening on http://localhost:${port}`);
-    });
-  })();
+  tokenManager.getAccessToken()
+    .then(() => console.log('Startup Keycloak token acquisition succeeded'))
+    .catch((error) => console.error(`Startup Keycloak token acquisition failed: ${error.message}`));
 }
 
 module.exports = {
