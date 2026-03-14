@@ -6,6 +6,12 @@ const TOKEN_EXPIRY_SAFETY_WINDOW_SECONDS = 30;
 const CLIENTS_PAGE_SIZE = 100;
 const CLIENTS_SORT = 'raisonSociale,asc';
 const CLIENTS_REQUEST_TIMEOUT_MS = 15_000;
+const PROJECTS_PAGE_SIZE = 100;
+const PROJECTS_SORT = 'id,asc';
+const TASKS_PAGE_SIZE = 200;
+const TASKS_SORT = 'id,asc';
+const PROJECTS_REQUEST_TIMEOUT_MS = 15_000;
+const TASKS_REQUEST_TIMEOUT_MS = 15_000;
 
 const REQUIRED_ENV = [
   'KEYCLOAK_URL',
@@ -53,6 +59,14 @@ const parseJsonBody = (bodyText, errorPrefix) => {
 
 const buildClientsPath = (page) =>
   `/api/clients?size=${CLIENTS_PAGE_SIZE}&page=${page}&sort=${CLIENTS_SORT}`;
+const buildProjectsPath = (dossierId) =>
+  `/api/projets?dossierCrmId=${encodeURIComponent(
+    dossierId
+  )}&size=${PROJECTS_PAGE_SIZE}&sort=${PROJECTS_SORT}`;
+const buildTasksPath = (projectId) =>
+  `/api/taches?projetId=${encodeURIComponent(
+    projectId
+  )}&size=${TASKS_PAGE_SIZE}&sort=${TASKS_SORT}`;
 
 const withTimeout = async (task, timeoutMs, timeoutMessage) => {
   const controller = new AbortController();
@@ -70,6 +84,29 @@ const withTimeout = async (task, timeoutMs, timeoutMessage) => {
   } finally {
     clearTimeout(timeoutId);
   }
+};
+
+const parseIsoDateOnly = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const datePart = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return null;
+  }
+
+  const date = new Date(`${datePart}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+};
+
+const getUtcTodayDate = () => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 };
 
 const fetchKeycloakToken = async (config) => {
@@ -248,6 +285,117 @@ const searchKinexoClientsByRaisonSociale = async (
   return matches;
 };
 
+const retrieveActiveTasksForClient = async (
+  kinexoClient,
+  { dossierId, clientName }
+) => {
+  if (!dossierId) {
+    return [];
+  }
+
+  const projects = await withTimeout(
+    async (signal) => {
+      const response = await kinexoClient.request(buildProjectsPath(dossierId), {
+        signal,
+      });
+      const bodyText = await response.text();
+
+      if (response.status === 204) {
+        return [];
+      }
+
+      if (!response.ok) {
+        const error = new Error(
+          `Kinexo projects request failed with status ${response.status}: ${bodyText}`
+        );
+        error.status = response.status;
+        error.body = bodyText;
+        throw error;
+      }
+
+      const payload = parseJsonBody(
+        bodyText,
+        'Kinexo projects response was not valid JSON'
+      );
+      return Array.isArray(payload?.content) ? payload.content : [];
+    },
+    PROJECTS_REQUEST_TIMEOUT_MS,
+    `Kinexo projects request timed out after ${PROJECTS_REQUEST_TIMEOUT_MS}ms`
+  );
+
+  const today = getUtcTodayDate();
+  const activeTasks = [];
+
+  for (const project of projects) {
+    const projectId = project?.id;
+    if (!projectId) {
+      continue;
+    }
+
+    const tasks = await withTimeout(
+      async (signal) => {
+        const response = await kinexoClient.request(buildTasksPath(projectId), {
+          signal,
+        });
+        const bodyText = await response.text();
+
+        if (response.status === 204) {
+          return [];
+        }
+
+        if (!response.ok) {
+          const error = new Error(
+            `Kinexo tasks request failed with status ${response.status}: ${bodyText}`
+          );
+          error.status = response.status;
+          error.body = bodyText;
+          throw error;
+        }
+
+        const payload = parseJsonBody(
+          bodyText,
+          'Kinexo tasks response was not valid JSON'
+        );
+        return Array.isArray(payload?.content) ? payload.content : [];
+      },
+      TASKS_REQUEST_TIMEOUT_MS,
+      `Kinexo tasks request timed out after ${TASKS_REQUEST_TIMEOUT_MS}ms`
+    );
+
+    for (const task of tasks) {
+      const start = parseIsoDateOnly(task?.dateDebutAuPlusTot);
+      const end = parseIsoDateOnly(task?.dateFinAuPlusTard);
+      if (!start || !end) {
+        continue;
+      }
+
+      if (start <= today && today <= end) {
+        const projectLabel =
+          typeof project?.libelle === 'string' && project.libelle.trim()
+            ? project.libelle
+            : `#${project?.id ?? 'unknown'}`;
+        const taskLabel =
+          typeof task?.libelle === 'string' && task.libelle.trim()
+            ? task.libelle
+            : `#${task?.id ?? 'unknown'}`;
+        activeTasks.push({
+          clientName,
+          projectLabel,
+          taskLabel,
+          statut: task?.statut,
+          startDate: task?.dateDebutAuPlusTot,
+          endDate: task?.dateFinAuPlusTard,
+          agents: Array.isArray(task?.matriculesAgents)
+            ? task.matriculesAgents
+            : [],
+        });
+      }
+    }
+  }
+
+  return activeTasks;
+};
+
 const createServer = () =>
   http.createServer((req, res) => {
     const path = req.url ? req.url.split('?')[0] : '';
@@ -288,4 +436,5 @@ module.exports = {
   createKeycloakTokenManager,
   createKinexoClient,
   searchKinexoClientsByRaisonSociale,
+  retrieveActiveTasksForClient,
 };
