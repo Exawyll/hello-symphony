@@ -3,6 +3,9 @@
 const http = require('http');
 
 const TOKEN_EXPIRY_SAFETY_WINDOW_SECONDS = 30;
+const CLIENTS_PAGE_SIZE = 100;
+const CLIENTS_SORT = 'raisonSociale,asc';
+const CLIENTS_REQUEST_TIMEOUT_MS = 15_000;
 
 const REQUIRED_ENV = [
   'KEYCLOAK_URL',
@@ -45,6 +48,27 @@ const parseJsonBody = (bodyText, errorPrefix) => {
     const wrapped = new Error(message);
     wrapped.cause = error;
     throw wrapped;
+  }
+};
+
+const buildClientsPath = (page) =>
+  `/api/clients?size=${CLIENTS_PAGE_SIZE}&page=${page}&sort=${CLIENTS_SORT}`;
+
+const withTimeout = async (task, timeoutMs, timeoutMessage) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await task(controller.signal);
+  } catch (error) {
+    if (error && error.name === 'AbortError') {
+      const timeoutError = new Error(timeoutMessage);
+      timeoutError.cause = error;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
@@ -167,6 +191,63 @@ const createKinexoClient = (config, tokenManager) => {
   return { request: requestWithAuth };
 };
 
+const searchKinexoClientsByRaisonSociale = async (
+  kinexoClient,
+  searchTerm
+) => {
+  const normalizedTerm = String(searchTerm ?? '').toLowerCase();
+  const matches = [];
+  let page = 0;
+  let last = false;
+
+  while (!last) {
+    const payload = await withTimeout(
+      async (signal) => {
+        const response = await kinexoClient.request(buildClientsPath(page), {
+          signal,
+        });
+        const bodyText = await response.text();
+
+        if (!response.ok) {
+          const error = new Error(
+            `Kinexo clients request failed with status ${response.status}: ${bodyText}`
+          );
+          error.status = response.status;
+          error.body = bodyText;
+          throw error;
+        }
+
+        return parseJsonBody(
+          bodyText,
+          'Kinexo clients response was not valid JSON'
+        );
+      },
+      CLIENTS_REQUEST_TIMEOUT_MS,
+      `Kinexo clients request timed out after ${CLIENTS_REQUEST_TIMEOUT_MS}ms`
+    );
+
+    const clients = Array.isArray(payload?.content) ? payload.content : [];
+    for (const client of clients) {
+      const raisonSociale = client?.raisonSociale ?? '';
+      if (
+        typeof raisonSociale === 'string' &&
+        raisonSociale.toLowerCase().includes(normalizedTerm)
+      ) {
+        matches.push({
+          raisonSociale,
+          dossierId: client?.dossierId ?? null,
+          numeroDossier: client?.numeroDossier ?? null,
+        });
+      }
+    }
+
+    last = Boolean(payload?.last);
+    page += 1;
+  }
+
+  return matches;
+};
+
 const createServer = () =>
   http.createServer((req, res) => {
     const path = req.url ? req.url.split('?')[0] : '';
@@ -213,4 +294,5 @@ module.exports = {
   loadConfig,
   createKeycloakTokenManager,
   createKinexoClient,
+  searchKinexoClientsByRaisonSociale,
 };
