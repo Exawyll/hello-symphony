@@ -51,6 +51,15 @@ Expected response:
 {"status":"ok"}
 ```
 
+Swagger UI (enabled by default when `ENV` is not `production`) is available at:
+
+```bash
+open http://localhost:8080/docs
+curl http://localhost:8080/openapi.json
+```
+
+Disable Swagger explicitly by setting `SWAGGER_ENABLED=false`.
+
 ### Docker
 
 ```bash

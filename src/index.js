@@ -1,6 +1,9 @@
 'use strict';
 
+const fs = require('fs');
 const http = require('http');
+const path = require('path');
+const swaggerUiDist = require('swagger-ui-dist');
 
 const TOKEN_EXPIRY_SAFETY_WINDOW_SECONDS = 30;
 const CLIENTS_PAGE_SIZE = 100;
@@ -20,6 +23,8 @@ const REQUIRED_ENV = [
   'CLIENT_SECRET',
   'API_BASE_URL',
 ];
+
+const BOOLEAN_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 const loadConfig = (env = process.env) => {
   const missing = REQUIRED_ENV.filter((key) => !env[key]);
@@ -42,6 +47,36 @@ const loadConfig = (env = process.env) => {
 const getPort = (env = process.env) => Number(env.PORT) || 8080;
 
 const normalizeBaseUrl = (value) => value.replace(/\/+$/, '');
+
+const parseBooleanEnv = (value) => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return BOOLEAN_TRUE_VALUES.has(value.trim().toLowerCase());
+};
+
+const isSwaggerEnabled = (env = process.env) => {
+  if (typeof env.SWAGGER_ENABLED === 'string') {
+    return parseBooleanEnv(env.SWAGGER_ENABLED);
+  }
+  return String(env.ENV || '').toLowerCase() !== 'production';
+};
+
+const getSwaggerUiRoot = () => {
+  if (typeof swaggerUiDist.getAbsoluteFSPath === 'function') {
+    return swaggerUiDist.getAbsoluteFSPath();
+  }
+  if (typeof swaggerUiDist.absolutePath === 'function') {
+    return swaggerUiDist.absolutePath();
+  }
+  if (typeof swaggerUiDist.absolutePath === 'string') {
+    return swaggerUiDist.absolutePath;
+  }
+  if (typeof swaggerUiDist === 'string') {
+    return swaggerUiDist;
+  }
+  throw new Error('Unable to locate swagger-ui-dist assets path');
+};
 
 const buildKeycloakTokenUrl = (config) =>
   `${normalizeBaseUrl(config.keycloakUrl)}/realms/${config.realm}/protocol/openid-connect/token`;
@@ -705,6 +740,7 @@ module.exports = {
   createServer,
   getPort,
   loadConfig,
+  isSwaggerEnabled,
   createKeycloakTokenManager,
   createKinexoClient,
   searchKinexoClientsByRaisonSociale,
