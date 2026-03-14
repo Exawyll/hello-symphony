@@ -1,6 +1,9 @@
 'use strict';
 
+const fs = require('fs');
 const http = require('http');
+const path = require('path');
+const swaggerUiDist = require('swagger-ui-dist');
 
 const TOKEN_EXPIRY_SAFETY_WINDOW_SECONDS = 30;
 const CLIENTS_PAGE_SIZE = 100;
@@ -20,6 +23,8 @@ const REQUIRED_ENV = [
   'CLIENT_SECRET',
   'API_BASE_URL',
 ];
+
+const BOOLEAN_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 const loadConfig = (env = process.env) => {
   const missing = REQUIRED_ENV.filter((key) => !env[key]);
@@ -42,6 +47,36 @@ const loadConfig = (env = process.env) => {
 const getPort = (env = process.env) => Number(env.PORT) || 8080;
 
 const normalizeBaseUrl = (value) => value.replace(/\/+$/, '');
+
+const parseBooleanEnv = (value) => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return BOOLEAN_TRUE_VALUES.has(value.trim().toLowerCase());
+};
+
+const isSwaggerEnabled = (env = process.env) => {
+  if (typeof env.SWAGGER_ENABLED === 'string') {
+    return parseBooleanEnv(env.SWAGGER_ENABLED);
+  }
+  return String(env.ENV || '').toLowerCase() !== 'production';
+};
+
+const getSwaggerUiRoot = () => {
+  if (typeof swaggerUiDist.getAbsoluteFSPath === 'function') {
+    return swaggerUiDist.getAbsoluteFSPath();
+  }
+  if (typeof swaggerUiDist.absolutePath === 'function') {
+    return swaggerUiDist.absolutePath();
+  }
+  if (typeof swaggerUiDist.absolutePath === 'string') {
+    return swaggerUiDist.absolutePath;
+  }
+  if (typeof swaggerUiDist === 'string') {
+    return swaggerUiDist;
+  }
+  throw new Error('Unable to locate swagger-ui-dist assets path');
+};
 
 const buildKeycloakTokenUrl = (config) =>
   `${normalizeBaseUrl(config.keycloakUrl)}/realms/${config.realm}/protocol/openid-connect/token`;
@@ -396,29 +431,441 @@ const retrieveActiveTasksForClient = async (
   return activeTasks;
 };
 
-const createServer = () =>
-  http.createServer((req, res) => {
-    const path = req.url ? req.url.split('?')[0] : '';
+const sendJson = (res, statusCode, payload) => {
+  const body = JSON.stringify(payload);
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(body),
+  });
+  res.end(body);
+};
 
-    if (req.method === 'GET' && path === '/health') {
-      const payload = JSON.stringify({ status: 'ok' });
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
+const sendNotFound = (res) => {
+  sendJson(res, 404, { error: 'Not Found' });
+};
+
+const getContentType = (filePath) => {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.css':
+      return 'text/css; charset=utf-8';
+    case '.html':
+      return 'text/html; charset=utf-8';
+    case '.js':
+      return 'application/javascript; charset=utf-8';
+    case '.json':
+      return 'application/json; charset=utf-8';
+    case '.png':
+      return 'image/png';
+    case '.svg':
+      return 'image/svg+xml';
+    default:
+      return 'application/octet-stream';
+  }
+};
+
+const buildSwaggerIndexHtml = () => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API Docs - Swagger UI</title>
+    <link rel="stylesheet" href="/docs/swagger-ui.css" />
+    <link rel="icon" type="image/png" href="/docs/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/docs/favicon-16x16.png" sizes="16x16" />
+    <style>
+      body { margin: 0; background: #fafafa; }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="/docs/swagger-ui-bundle.js" charset="UTF-8"></script>
+    <script src="/docs/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: "/openapi.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout"
       });
-      res.end(payload);
+    </script>
+  </body>
+</html>
+`;
+
+const buildOpenApiSpec = (config) => {
+  const productionBaseUrl = 'https://production.kinexo.fr';
+  const apiBaseUrl = config?.apiBaseUrl || productionBaseUrl;
+  const serverEntries = [
+    {
+      url: '/',
+      description: 'Current service base URL',
+    },
+    {
+      url: apiBaseUrl,
+      description: 'Configured API_BASE_URL (Kinexo upstream)',
+    },
+  ];
+  if (apiBaseUrl !== productionBaseUrl) {
+    serverEntries.push({
+      url: productionBaseUrl,
+      description: 'Production Kinexo API base URL',
+    });
+  }
+
+  return {
+    openapi: '3.0.3',
+    info: {
+      title: 'Kinexo Tasks API Gateway',
+      version: '1.0.0',
+      summary: 'Explore Kinexo tasks and health endpoints.',
+      description:
+        'HTTP service exposing health checks and Kinexo task search for active client work.',
+    },
+    servers: serverEntries,
+    components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Keycloak access token for Kinexo APIs.',
+        },
+      },
+      schemas: {
+        ErrorResponse: {
+          type: 'object',
+          required: ['error'],
+          properties: {
+            error: {
+              type: 'string',
+              description: 'Human-readable error message.',
+            },
+          },
+        },
+        HealthResponse: {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: {
+              type: 'string',
+              example: 'ok',
+            },
+          },
+        },
+        Task: {
+          type: 'object',
+          required: [
+            'clientName',
+            'projectLabel',
+            'taskLabel',
+            'statut',
+            'startDate',
+            'endDate',
+            'agents',
+          ],
+          properties: {
+            clientName: {
+              type: 'string',
+              description: 'Client display name from Kinexo.',
+            },
+            projectLabel: {
+              type: 'string',
+              description: 'Project label associated with the task.',
+            },
+            taskLabel: {
+              type: 'string',
+              description: 'Task label from Kinexo.',
+            },
+            statut: {
+              type: 'string',
+              nullable: true,
+              description: 'Task status returned by Kinexo.',
+            },
+            startDate: {
+              type: 'string',
+              format: 'date',
+              description: 'ISO date for the task start window.',
+            },
+            endDate: {
+              type: 'string',
+              format: 'date',
+              description: 'ISO date for the task end window.',
+            },
+            agents: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Agent identifiers assigned to the task.',
+            },
+          },
+        },
+        TasksResponse: {
+          type: 'object',
+          required: ['query', 'count', 'tasks'],
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search term used for client lookup.',
+            },
+            count: {
+              type: 'integer',
+              description: 'Number of tasks returned.',
+            },
+            tasks: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Task' },
+            },
+          },
+        },
+      },
+    },
+    paths: {
+      '/health': {
+        get: {
+          summary: 'Health check',
+          description:
+            'Returns a simple status payload confirming the service is online.',
+          responses: {
+            200: {
+              description: 'Service is healthy.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/HealthResponse' },
+                  examples: {
+                    ok: { value: { status: 'ok' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/tasks': {
+        get: {
+          summary: 'Search active Kinexo tasks by client name',
+          description:
+            'Searches Kinexo clients by raison sociale and returns active tasks for matching clients.',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            {
+              name: 'q',
+              in: 'query',
+              required: true,
+              description: 'Search term for client raison sociale.',
+              schema: { type: 'string' },
+              example: 'acme',
+            },
+          ],
+          responses: {
+            200: {
+              description: 'Active tasks for matching clients.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/TasksResponse' },
+                  examples: {
+                    sample: {
+                      value: {
+                        query: 'acme',
+                        count: 1,
+                        tasks: [
+                          {
+                            clientName: 'ACME Corporation',
+                            projectLabel: 'Onboarding',
+                            taskLabel: 'Kickoff meeting',
+                            statut: 'EN_COURS',
+                            startDate: '2026-03-01',
+                            endDate: '2026-03-31',
+                            agents: ['A123', 'B456'],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: {
+              description: 'Missing or invalid query parameter.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/ErrorResponse' },
+                  examples: {
+                    missingQuery: {
+                      value: { error: 'Missing required query parameter: q' },
+                    },
+                  },
+                },
+              },
+            },
+            502: {
+              description: 'Upstream Kinexo request failed.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/ErrorResponse' },
+                },
+              },
+            },
+            504: {
+              description: 'Upstream Kinexo request timed out.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/ErrorResponse' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+};
+
+const createServer = ({
+  config,
+  tokenManager,
+  swaggerEnabled = isSwaggerEnabled(),
+} = {}) => {
+  const swaggerUiRoot = swaggerEnabled ? getSwaggerUiRoot() : null;
+  const kinexoClient =
+    config && tokenManager ? createKinexoClient(config, tokenManager) : null;
+
+  const serveSwaggerAsset = async (res, assetPath) => {
+    if (!swaggerUiRoot) {
+      sendNotFound(res);
       return;
     }
 
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not Found' }));
+    const normalized = path.normalize(assetPath).replace(/^(\.\.(\/|\\|$))+/, '');
+    const absolutePath = path.join(swaggerUiRoot, normalized);
+    if (!absolutePath.startsWith(swaggerUiRoot)) {
+      sendNotFound(res);
+      return;
+    }
+
+    try {
+      const data = await fs.promises.readFile(absolutePath);
+      res.writeHead(200, { 'Content-Type': getContentType(absolutePath) });
+      res.end(data);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') {
+        sendNotFound(res);
+        return;
+      }
+      sendJson(res, 500, { error: 'Failed to load Swagger UI asset' });
+    }
+  };
+
+  const handleTasksRequest = async (res, searchTerm) => {
+    if (!kinexoClient) {
+      sendJson(res, 500, { error: 'Server configuration missing' });
+      return;
+    }
+
+    if (!searchTerm || !searchTerm.trim()) {
+      sendJson(res, 400, { error: 'Missing required query parameter: q' });
+      return;
+    }
+
+    try {
+      const matches = await searchKinexoClientsByRaisonSociale(
+        kinexoClient,
+        searchTerm.trim()
+      );
+
+      const tasks = [];
+      for (const match of matches) {
+        const clientTasks = await retrieveActiveTasksForClient(kinexoClient, {
+          dossierId: match.dossierId,
+          clientName: match.raisonSociale,
+        });
+        tasks.push(...clientTasks);
+      }
+
+      sendJson(res, 200, {
+        query: searchTerm.trim(),
+        count: tasks.length,
+        tasks,
+      });
+    } catch (error) {
+      const message = error?.message || 'Upstream request failed';
+      if (message.toLowerCase().includes('timed out')) {
+        sendJson(res, 504, { error: message });
+        return;
+      }
+      sendJson(res, 502, { error: message });
+    }
+  };
+
+  const handleRequest = async (req, res) => {
+    const url = new URL(req.url || '/', 'http://localhost');
+    const requestPath = url.pathname;
+
+    if (req.method === 'GET' && requestPath === '/health') {
+      sendJson(res, 200, { status: 'ok' });
+      return;
+    }
+
+    if (req.method === 'GET' && requestPath === '/tasks') {
+      await handleTasksRequest(res, url.searchParams.get('q'));
+      return;
+    }
+
+    if (req.method === 'GET' && requestPath === '/openapi.json') {
+      if (!swaggerEnabled) {
+        sendNotFound(res);
+        return;
+      }
+      sendJson(res, 200, buildOpenApiSpec(config));
+      return;
+    }
+
+    if (req.method === 'GET' && (requestPath === '/docs' || requestPath === '/docs/')) {
+      if (!swaggerEnabled) {
+        sendNotFound(res);
+        return;
+      }
+      const html = buildSwaggerIndexHtml();
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': Buffer.byteLength(html),
+      });
+      res.end(html);
+      return;
+    }
+
+    if (req.method === 'GET' && requestPath.startsWith('/docs/')) {
+      if (!swaggerEnabled) {
+        sendNotFound(res);
+        return;
+      }
+      await serveSwaggerAsset(res, requestPath.replace('/docs/', ''));
+      return;
+    }
+
+    sendNotFound(res);
+  };
+
+  return http.createServer((req, res) => {
+    handleRequest(req, res).catch((error) => {
+      console.error('Request handling failed:', error);
+      sendJson(res, 500, { error: 'Internal Server Error' });
+    });
   });
+};
 
 if (require.main === module) {
   const config = loadConfig();
   const port = getPort();
-  const server = createServer();
   const tokenManager = createKeycloakTokenManager(config);
+  const server = createServer({
+    config,
+    tokenManager,
+    swaggerEnabled: isSwaggerEnabled(),
+  });
 
   server.listen(port, () => {
     console.log(`Server listening on http://localhost:${port}`);
@@ -433,6 +880,7 @@ module.exports = {
   createServer,
   getPort,
   loadConfig,
+  isSwaggerEnabled,
   createKeycloakTokenManager,
   createKinexoClient,
   searchKinexoClientsByRaisonSociale,
