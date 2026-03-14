@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=nobody:nogroup src/ ./src/
+COPY --chown=nobody:nogroup static/ ./static/
 
 USER nobody
 
