@@ -53,7 +53,10 @@ class KeycloakTokenManager:
                     },
                 )
         except httpx.RequestError as exc:
-            raise RuntimeError(f"Keycloak connection failed: {exc}") from exc
+            cause = exc.__cause__ or exc.__context__ or exc
+            raise RuntimeError(
+                f"Keycloak connection failed ({type(exc).__name__}): {cause}"
+            ) from exc
 
         if resp.status_code == 401:
             raise RuntimeError(
