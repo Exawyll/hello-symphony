@@ -29,7 +29,7 @@ steps:
 
 substitutions:
   _REGION: 'europe-west1'
-  _PROJECT_ID: 'your-gcp-project-id'
+  _PROJECT_ID: 'hello-490012'
   _SERVICE_NAME: 'hello-symphony'
   _REPO: 'hello-symphony'
 
