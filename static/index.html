@@ -99,6 +99,19 @@
       background: #fff;
     }
 
+    .table-note {
+      padding: 10px 12px 12px;
+      font-size: 0.78rem;
+      color: #6b778c;
+      font-style: italic;
+      text-align: left;
+      border-top: 1px solid #f0f1f3;
+    }
+
+    .table-note a {
+      color: #0052cc;
+    }
+
     table {
       border-collapse: collapse;
       width: max-content;
@@ -370,6 +383,14 @@ function renderRapport(data) {
   const container = document.getElementById('table-container');
   container.innerHTML = '';
   container.appendChild(buildTable(data));
+  const note = document.createElement('div');
+  note.className = 'table-note';
+  note.appendChild(document.createTextNode('Pour mettre ce tableau à jour, merci d\'en faire la demande explicite à '));
+  const link = document.createElement('a');
+  link.href = 'mailto:w.delaunay@groupeonepoint.com';
+  link.textContent = 'w.delaunay@groupeonepoint.com';
+  note.appendChild(link);
+  container.appendChild(note);
   container.style.display = 'block';
 }
 
