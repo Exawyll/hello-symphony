@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rapport Mensuel Clients</title>
+  <title>Tableau récapitulatif des KPIs Nexcer</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,16 +20,26 @@
       background: #0052cc;
       color: #fff;
       padding: 14px 24px;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 16px;
-      flex-wrap: wrap;
     }
 
     header h1 {
       font-size: 1.1rem;
       font-weight: 600;
-      flex: 1;
+      grid-column: 2;
+      text-align: center;
+    }
+
+    .header-controls {
+      grid-column: 3;
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     #periode-label {
@@ -138,15 +148,20 @@
       color: #0052cc;
       font-weight: 600;
       font-size: 0.72rem;
-      padding: 8px 4px 4px;
-      text-align: center;
+      padding: 8px 6px 10px;
+      text-align: left;
       white-space: nowrap;
       border-bottom: 2px solid #b3d0ff;
       border-right: 1px solid #c8dcff;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      height: 110px;
+      height: 120px;
       vertical-align: bottom;
+    }
+
+    thead tr:nth-child(2) th .rotated-label {
+      display: inline-block;
+      transform: rotate(-45deg);
+      transform-origin: left bottom;
+      white-space: nowrap;
     }
 
     tbody tr { border-bottom: 1px solid #f0f1f3; }
@@ -197,10 +212,12 @@
 <body>
 
 <header>
-  <h1>Rapport Mensuel Clients</h1>
-  <span id="periode-label"></span>
-  <select id="month-select" style="display:none"></select>
-  <span class="freshness" id="freshness"></span>
+  <h1>Tableau récapitulatif des KPIs Nexcer</h1>
+  <div class="header-controls">
+    <span id="periode-label"></span>
+    <select id="month-select" style="display:none"></select>
+    <span class="freshness" id="freshness"></span>
+  </div>
 </header>
 
 <main>
@@ -308,7 +325,10 @@ function buildTable(data) {
 
   COLUMNS.forEach(([field, label, group], idx) => {
     const th = document.createElement('th');
-    th.textContent = label;
+    const span = document.createElement('span');
+    span.className = 'rotated-label';
+    span.textContent = label;
+    th.appendChild(span);
     // Add separator after last column of each group (except last group)
     const g = groups.find(g => g.key === group);
     if (g && idx === g.lastIndex) {
