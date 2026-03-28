@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Détail client</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #0052cc;
+      --blue-soft: #e6f0ff;
+      --green: #00875a;
+      --green-soft: #e3fcef;
+      --ink: #172b4d;
+      --muted: #6b778c;
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --border: #dfe1e6;
+      --shadow: 0 6px 16px rgba(9, 30, 66, 0.12);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #f1f5ff 0%, #f4f5f7 40%, #f4f5f7 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    header {
+      background: #0b1f3b;
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+
+    .back-link:hover { background: rgba(255, 255, 255, 0.2); }
+    .back-link:focus-visible {
+      outline: 2px solid #4c9aff;
+      outline-offset: 2px;
+    }
+
+    .client-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .client-meta {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+
+    main {
+      padding: 28px 24px 48px;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .section {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .section-tag {
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .section.mykinexo { border-top: 4px solid var(--blue); }
+    .section.mykinexo .section-title { color: var(--blue); }
+    .section.mykinexo .section-tag { background: var(--blue-soft); color: var(--blue); }
+
+    .section.kinexo { border-top: 4px solid var(--green); }
+    .section.kinexo .section-title { color: var(--green); }
+    .section.kinexo .section-tag { background: var(--green-soft); color: var(--green); }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .metric-card {
+      border: 1px solid #eef0f5;
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    .metric-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .metric-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      background: #f4f5f7;
+    }
+
+    .metric-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .metric-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .metric-value.is-zero {
+      color: #c1c7d0;
+      font-weight: 600;
+    }
+
+    .metric-value.is-missing {
+      color: #b3bac5;
+      font-weight: 600;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 40px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #dfe1e6;
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      background: #ffebe6;
+      border: 1px solid #ff5630;
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: #bf2600;
+    }
+
+    @media (max-width: 720px) {
+      header { align-items: flex-start; }
+      .client-title { font-size: 1.35rem; }
+      main { padding: 20px 16px 36px; }
+      .section { padding: 16px; }
+      .metric-card { min-height: 110px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <a class="back-link" id="back-link" href="/">← Retour à la liste</a>
+  <div>
+    <div class="client-title" id="client-name">Chargement…</div>
+    <div class="client-meta" id="client-meta"></div>
+  </div>
+</header>
+
+<main>
+  <div id="status" class="status"><div class="spinner"></div> Chargement des données…</div>
+
+  <section class="section mykinexo" id="section-myk" style="display:none">
+    <div class="section-header">
+      <div class="section-title">Coffres MYKINEXO</div>
+      <div class="section-tag">MyKinexo</div>
+    </div>
+    <div class="cards-grid" id="grid-myk"></div>
+  </section>
+
+  <section class="section kinexo" id="section-kinexo" style="display:none">
+    <div class="section-header">
+      <div class="section-title">KINEXO</div>
+      <div class="section-tag">Kinexo</div>
+    </div>
+    <div class="cards-grid" id="grid-kinexo"></div>
+  </section>
+
+  <div id="error" class="error-msg" style="display:none"></div>
+</main>
+
+<script>
+  const metricsMyk = [
+    { field: 'coffre_actif', label: 'Coffres actifs', icon: '🧰' },
+    { field: 'coffre_ouvert_inactif', label: 'Ouverts inactifs', icon: '🔓' },
+    { field: 'coffre_actif_ba_bic_hors_sci', label: 'BA/BIC hors SCI', icon: '📁' },
+    { field: 'coffre_actif_ba_bic_sci', label: 'BA/BIC SCI', icon: '🧪' },
+    { field: 'coffre_actif_bnc', label: 'BNC', icon: '🧾' },
+    { field: 'coffre_paiement_actif', label: 'Paiement', icon: '💳' },
+    { field: 'coffre_agregation_actif', label: 'Agrégation', icon: '🔗' },
+    { field: 'coffre_base_article_actif', label: 'Base article', icon: '📰' },
+    { field: 'coffre_facturier_actif', label: 'Facturier', icon: '🧮' }
+  ];
+
+  const metricsKinexo = [
+    { field: 'nb_dossiers_actifs', label: 'Dossiers actifs', icon: '📂' },
+    { field: 'nb_sms', label: 'SMS', icon: '💬' },
+    { field: 'nb_echeances_a_venir', label: 'Échéances à venir', icon: '⏳' },
+    { field: 'nb_missions_actives', label: 'Missions actives', icon: '🛰' },
+    { field: 'nb_imputations', label: 'Imputations', icon: '📌' },
+    { field: 'nb_propositions_validees', label: 'Propositions validées', icon: '✅' },
+    { field: 'nb_adhesions_actives', label: 'Adhésions actives', icon: '🤝' },
+    { field: 'nb_dossiers_ediflux', label: 'Dossiers Ediflux', icon: '📦' }
+  ];
+
+  const statusEl = document.getElementById('status');
+  const errorEl = document.getElementById('error');
+  const clientNameEl = document.getElementById('client-name');
+  const clientMetaEl = document.getElementById('client-meta');
+
+  const sectionMyk = document.getElementById('section-myk');
+  const sectionKinexo = document.getElementById('section-kinexo');
+  const gridMyk = document.getElementById('grid-myk');
+  const gridKinexo = document.getElementById('grid-kinexo');
+
+  function clientKey(client) {
+    const raw = client.dossier_id || client.dossierId || client.id || client.numero_dossier || '';
+    return String(raw);
+  }
+
+  function fmtNumber(val) {
+    return Number(val).toLocaleString('fr-FR');
+  }
+
+  function fmtDate(val) {
+    if (!val) return '';
+    let d;
+    if (val && typeof val === 'object' && typeof val.toDate === 'function') {
+      d = val.toDate();
+    } else {
+      d = new Date(val);
+    }
+    if (isNaN(d)) return '';
+    return d.toLocaleString('fr-FR', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function renderMetric(grid, metric, value) {
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+
+    const top = document.createElement('div');
+    top.className = 'metric-top';
+
+    const label = document.createElement('div');
+    label.className = 'metric-label';
+    label.textContent = metric.label;
+
+    const icon = document.createElement('div');
+    icon.className = 'metric-icon';
+    icon.textContent = metric.icon;
+
+    top.appendChild(label);
+    top.appendChild(icon);
+
+    const val = document.createElement('div');
+    val.className = 'metric-value';
+    if (value == null) {
+      val.textContent = '—';
+      val.classList.add('is-missing');
+    } else {
+      val.textContent = fmtNumber(value);
+      if (Number(value) === 0) val.classList.add('is-zero');
+    }
+
+    card.appendChild(top);
+    card.appendChild(val);
+    grid.appendChild(card);
+  }
+
+  function renderSection(sectionEl, grid, metrics, client) {
+    grid.innerHTML = '';
+    metrics.forEach(metric => {
+      renderMetric(grid, metric, client[metric.field]);
+    });
+    sectionEl.style.display = 'block';
+  }
+
+  async function loadClient() {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const clientId = decodeURIComponent(pathParts[pathParts.length - 1] || '');
+    const params = new URLSearchParams(window.location.search);
+    const mois = params.get('mois');
+
+    const backLink = document.getElementById('back-link');
+    backLink.href = mois ? `/?mois=${encodeURIComponent(mois)}` : '/';
+
+    const url = mois ? `/api/rapport/${mois}` : '/api/rapport/latest';
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const raw = data.clients || {};
+      const clients = Array.isArray(raw) ? raw : Object.values(raw);
+      const client = clients.find(c => clientKey(c) === clientId);
+
+      if (!client) {
+        throw new Error('Client introuvable dans le rapport sélectionné.');
+      }
+
+      clientNameEl.textContent = client.raison_sociale || client.raisonSociale || 'Client';
+      const periode = data.periode ? `Période ${data.periode}` : '';
+      const updated = data.last_updated ? `Mise à jour ${fmtDate(data.last_updated)}` : '';
+      clientMetaEl.textContent = [periode, updated].filter(Boolean).join(' • ');
+      document.title = `Détail - ${clientNameEl.textContent}`;
+
+      renderSection(sectionMyk, gridMyk, metricsMyk, client);
+      renderSection(sectionKinexo, gridKinexo, metricsKinexo, client);
+
+      statusEl.style.display = 'none';
+    } catch (err) {
+      statusEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = `Erreur : ${err.message}`;
+      clientNameEl.textContent = 'Client introuvable';
+    }
+  }
+
+  loadClient();
+</script>
+</body>
+</html>
