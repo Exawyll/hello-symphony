@@ -72,6 +72,11 @@ async def index():
 async def clients_view():
     return FileResponse(STATIC_DIR / 'clients.html')
 
+
+@app.get('/client/{client_id}', include_in_schema=False)
+async def client_detail_view(client_id: str):
+    return FileResponse(STATIC_DIR / 'client.html')
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     uvicorn.run('src.main:app', host='0.0.0.0', port=config.port)
